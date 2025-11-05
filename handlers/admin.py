@@ -2,14 +2,13 @@ import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from config import ADMIN_ID, PAGE_SIZE
-from locales import get_text
+from locales import get_text, _
 from services.tickets import ticket_service
 from services.bans import ban_manager
 from storage.data_manager import data_manager
 from storage.instruction_store import INSTRUCTION_MESSAGES, SEARCH_RESULT_MESSAGES, INBOX_MENU_MESSAGES
 from utils.formatters import format_ticket_brief, format_ticket_card, format_ticket_preview
 from utils.admin_screen import show_admin_screen, reset_admin_screen
-from locales import _
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +89,7 @@ async def show_inbox(update: Update, context: ContextTypes.DEFAULT_TYPE):
     search_row = [InlineKeyboardButton(_("search.button"), callback_data="search_ticket_start")]
 
     # Main menu button
-    home_row = [InlineKeyboardButton(f"{get_text('ui.home_emoji')} {_('buttons.main_menu')}", callback_data="admin_home")]
+    home_row = [InlineKeyboardButton(f"{_('ui.home_emoji')} {_('buttons.main_menu')}", callback_data="admin_home")]
 
     # Build keyboard
     keyboard_rows = [filter_row]
@@ -135,13 +134,13 @@ async def show_ticket_card(update: Update, context: ContextTypes.DEFAULT_TYPE, t
     actions = []
 
     if ticket.status == "new":
-        actions.append([InlineKeyboardButton("✅ Take in progress", callback_data=f"take:{ticket_id}")])
+        actions.append([InlineKeyboardButton(_("admin.take"), callback_data=f"take:{ticket_id}")])
     elif ticket.status == "working":
-        actions.append([InlineKeyboardButton("💬 Reply", callback_data=f"reply:{ticket_id}")])
-        actions.append([InlineKeyboardButton("✅ Close", callback_data=f"close:{ticket_id}")])
+        actions.append([InlineKeyboardButton(_("admin.reply"), callback_data=f"reply:{ticket_id}")])
+        actions.append([InlineKeyboardButton(_("admin.close"), callback_data=f"close:{ticket_id}")])
 
     actions.append([InlineKeyboardButton(f"◀️ {_('buttons.back')}", callback_data="admin_inbox")])
-    actions.append([InlineKeyboardButton(f"{get_text('ui.home_emoji')} {_('buttons.main_menu')}", callback_data="admin_home")])
+    actions.append([InlineKeyboardButton(f"{_('ui.home_emoji')} {_('buttons.main_menu')}", callback_data="admin_home")])
 
     keyboard = InlineKeyboardMarkup(actions)
 
@@ -161,7 +160,7 @@ async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = _("admin.stats_text", **stats)
 
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton(f"{get_text('ui.home_emoji')} {_('buttons.main_menu')}", callback_data="admin_home")]
+        [InlineKeyboardButton(f"{_('ui.home_emoji')} {_('buttons.main_menu')}", callback_data="admin_home")]
     ])
 
     await show_admin_screen(update, context, text, keyboard)
@@ -282,7 +281,7 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
             await update.message.reply_text(_("admin.enter_ban_reason"))
         except ValueError:
-            await update.message.reply_text("Invalid ID format")
+            await update.message.reply_text(_("messages.invalid_id_format"))
 
     elif state == "awaiting_ban_reason":
         user_id = context.user_data.get("ban_user_id")
@@ -304,7 +303,7 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 _("admin.user_unbanned", user_id=user_id)
             )
         except ValueError:
-            await update.message.reply_text("Invalid ID format")
+            await update.message.reply_text(_("messages.invalid_id_format"))
 
     elif state == "awaiting_reply":
         from handlers.user import handle_admin_reply
@@ -312,10 +311,7 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     else:
         msg = await update.message.reply_text(
-            "⚠️ To reply to a ticket:\n"
-            "1. Press '▶️ Take in progress'\n"
-            "2. Then press '💬 Reply'\n"
-            "3. Send your message"
+            _("admin.reply_instruction")
         )
         INSTRUCTION_MESSAGES[ADMIN_ID] = msg.message_id
         logger.info(f"Saved instruction message_id={msg.message_id} for admin {ADMIN_ID}")
