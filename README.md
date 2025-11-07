@@ -2,7 +2,7 @@
 
 > Full-featured Telegram bot for ticket management, feedback collection, and customer support automation
 
-![Version](https://img.shields.io/badge/version-2.3.9-blue)
+![Version](https://img.shields.io/badge/version-2.5.0-blue)
 ![Python](https://img.shields.io/badge/python-3.11+-green)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 
@@ -78,7 +78,7 @@ Create `.env` file:
 
 🔴 MANDATORY!
 BOT_TOKEN=7123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi
-ADMIN_ID=5233603778
+ADMIN_ID=52.5.03778
 DEFAULT_LOCALE=en
 
 📋 RECOMMENDED (for notifications)
@@ -221,8 +221,9 @@ MIT License – free for personal and commercial use.
 
 | Version | Date | Description |
 |---------|------|-------------|
-| 2.3.9 | 2025-10-29 | ✨ Stable version with multi-language support |
-| 2.3.0 | 2025-10 | 🎉 First release |
+| 2.5.0 | 2025-11-07 | 🔧 Fixed localization and feedback system |
+| 2.4.1 | 2025-11-06 | ✨ Stable version with multi-language support |
+| 2.3.9 | 2025-10-29 | 🎉 First release |
 
 ---
 
