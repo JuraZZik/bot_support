@@ -22,6 +22,18 @@ logger = logging.getLogger(__name__)
 application = None
 
 
+async def cleanup_logs_async():
+    """Wrapper for sync cleanup_old_logs function"""
+    from services.logs import log_service
+    log_service.cleanup_old_logs()
+
+
+async def backup_async():
+    """Wrapper for sync create_backup function"""
+    from services.backup import backup_service
+    backup_service.create_backup()
+
+
 async def run_bot():
     """Start bot with polling"""
     global application
@@ -38,6 +50,33 @@ async def run_bot():
                 logger.info("Bot menu configured successfully")
             except Exception as e:
                 logger.error(f"Failed to setup bot menu: {e}", exc_info=True)
+
+            # Initialize and start scheduler
+            logger.info("Starting scheduler service...")
+            try:
+                from services.scheduler import scheduler_service
+
+                # Start scheduler
+                await scheduler_service.start()
+                logger.info("Scheduler service started")
+
+                # Add periodic jobs with async wrappers
+                await scheduler_service.add_job(
+                    "cleanup_logs",
+                    cleanup_logs_async,
+                    3600  # 1 hour in seconds
+                )
+                logger.info("Added job: cleanup_logs (3600s)")
+
+                await scheduler_service.add_job(
+                    "daily_backup",
+                    backup_async,
+                    86400  # 24 hours in seconds
+                )
+                logger.info("Added job: daily_backup (86400s)")
+
+            except Exception as e:
+                logger.error(f"Failed to setup scheduler: {e}", exc_info=True)
 
             # Remove shutdown flag
             shutdown_flag = os.path.join(os.path.dirname(__file__), ".shutdown")
@@ -72,14 +111,14 @@ async def run_bot():
 
             # Wait for shutdown signal
             stop_event = asyncio.Event()
-            
+
             # Add signal handlers
             loop = asyncio.get_running_loop()
-            
+
             def signal_handler(sig):
                 """Sync signal handler for loop signals"""
                 asyncio.create_task(shutdown_handler(sig, stop_event))
-            
+
             loop.add_signal_handler(2, signal_handler, 2)   # SIGINT
             loop.add_signal_handler(15, signal_handler, 15)  # SIGTERM
 
@@ -96,6 +135,14 @@ async def run_bot():
         raise
     finally:
         try:
+            # Stop scheduler before stopping application
+            try:
+                from services.scheduler import scheduler_service
+                await scheduler_service.stop()
+                logger.info("Scheduler service stopped")
+            except Exception as e:
+                logger.error(f"Error stopping scheduler: {e}", exc_info=True)
+
             await application.stop()
             logger.info("Application stopped")
         except Exception as e:
@@ -105,6 +152,14 @@ async def run_bot():
 async def shutdown_handler(sig, stop_event):
     """Handle shutdown signal"""
     logger.info(f"Received signal {sig}, stopping bot...")
+
+    # Stop scheduler
+    try:
+        from services.scheduler import scheduler_service
+        await scheduler_service.stop()
+        logger.info("Scheduler stopped during shutdown")
+    except Exception as e:
+        logger.error(f"Failed to stop scheduler: {e}", exc_info=True)
 
     # Send shutdown alert
     try:

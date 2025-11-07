@@ -1,8 +1,9 @@
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import ContextTypes
 from config import ADMIN_ID, PAGE_SIZE, DEFAULT_LOCALE
-from locales import get_text, get_user_locale
+from locales import get_text
+from utils.locale_helper import get_user_language, get_admin_language
 from services.tickets import ticket_service
 from services.bans import ban_manager
 from storage.data_manager import data_manager
@@ -12,10 +13,6 @@ from utils.admin_screen import show_admin_screen, reset_admin_screen, clear_all_
 
 logger = logging.getLogger(__name__)
 
-def _get_user_lang(user_id: int) -> str:
-    """Get user language from locales module or config default"""
-    lang = get_user_locale(user_id)
-    return lang if lang else DEFAULT_LOCALE
 
 async def inbox_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle incoming tickets inbox"""
@@ -29,10 +26,12 @@ async def inbox_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await show_inbox(update, context)
 
+
 async def show_inbox(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Display ticket list with pagination and filtering"""
     user = update.effective_user
-    user_lang = _get_user_lang(user.id)
+    # Get admin language instead of user language
+    user_lang = get_admin_language()
 
     logger.info(f"🔍 DEBUG: PAGE_SIZE = {PAGE_SIZE}")
 
@@ -68,9 +67,9 @@ async def show_inbox(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Format message text
     if not page_tickets:
-        text = f"📥 **{get_text('inbox.title', lang=user_lang)}** ({filter_display})\n\n{get_text('inbox.no_tickets', lang=user_lang)}"
+        text = f"**{get_text('inbox.title', lang=user_lang)}** ({filter_display})\n\n{get_text('inbox.no_tickets', lang=user_lang)}"
     else:
-        header = f"📥 **{get_text('inbox.title', lang=user_lang)}** ({filter_display}) | {get_text('inbox.page', lang=user_lang, page=page+1, total=total_pages)}\n\n"
+        header = f"**{get_text('inbox.title', lang=user_lang)}** ({filter_display}) | {get_text('inbox.page', lang=user_lang, page=page+1, total=total_pages)}\n\n"
         previews = [format_ticket_preview(t) for t in page_tickets]
         text = header + "\n".join(previews)
 
@@ -89,15 +88,15 @@ async def show_inbox(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Build pagination buttons
     nav_row = []
     if page > 0:
-        nav_row.append(InlineKeyboardButton(f"◀️ {get_text('buttons.back', lang=user_lang)}", callback_data=f"inbox_page:{page-1}"))
+        nav_row.append(InlineKeyboardButton(get_text('buttons.back', lang=user_lang), callback_data=f"inbox_page:{page-1}"))
     if page < total_pages - 1:
-        nav_row.append(InlineKeyboardButton(f"{get_text('buttons.forward', lang=user_lang)} ▶️", callback_data=f"inbox_page:{page+1}"))
+        nav_row.append(InlineKeyboardButton(get_text('buttons.forward', lang=user_lang), callback_data=f"inbox_page:{page+1}"))
 
     # Search button (with localization)
     search_row = [InlineKeyboardButton(get_text("search.button", lang=user_lang), callback_data="search_ticket_start")]
 
-    # Main menu button
-    home_row = [InlineKeyboardButton(f"{get_text('ui.home_emoji', lang=user_lang)} {get_text('buttons.main_menu', lang=user_lang)}", callback_data="admin_home")]
+    # Main menu button (NO EXTRA EMOJI!)
+    home_row = [InlineKeyboardButton(get_text('buttons.main_menu', lang=user_lang), callback_data="admin_home")]
 
     # Build complete keyboard
     keyboard_rows = [filter_row]
@@ -108,17 +107,18 @@ async def show_inbox(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = InlineKeyboardMarkup(keyboard_rows)
 
-    await show_admin_screen(update, context, text, keyboard)
+    await show_admin_screen(update, context, text, keyboard, screen_type="inbox")
+
 
 async def show_ticket_card(update: Update, context: ContextTypes.DEFAULT_TYPE, ticket_id: str):
     """Display full ticket card"""
     user = update.effective_user
-    user_lang = _get_user_lang(user.id)
+    user_lang = get_admin_language()
 
     ticket = ticket_service.get_ticket(ticket_id)
 
     if not ticket:
-        await show_admin_screen(update, context, get_text("messages.ticket_not_found", lang=user_lang), None)
+        await show_admin_screen(update, context, get_text("messages.ticket_not_found", lang=user_lang), None, screen_type="ticket")
         return
 
     text = format_ticket_card(ticket)
@@ -127,22 +127,33 @@ async def show_ticket_card(update: Update, context: ContextTypes.DEFAULT_TYPE, t
     actions = []
 
     if ticket.status == "new":
-        actions.append([InlineKeyboardButton(get_text("admin.take", lang=user_lang), callback_data=f"take:{ticket_id}")])
+        # Row 1: Take + Close (side by side)
+        actions.append([
+            InlineKeyboardButton(get_text("buttons.take", lang=user_lang), callback_data=f"take:{ticket_id}"),
+            InlineKeyboardButton(get_text("buttons.close", lang=user_lang), callback_data=f"close:{ticket_id}")
+        ])
     elif ticket.status == "working":
-        actions.append([InlineKeyboardButton(get_text("admin.reply", lang=user_lang), callback_data=f"reply:{ticket_id}")])
-        actions.append([InlineKeyboardButton(get_text("admin.close", lang=user_lang), callback_data=f"close:{ticket_id}")])
+        # Row 1: Reply + Close (side by side)
+        actions.append([
+            InlineKeyboardButton(get_text("buttons.reply", lang=user_lang), callback_data=f"reply:{ticket_id}"),
+            InlineKeyboardButton(get_text("buttons.close", lang=user_lang), callback_data=f"close:{ticket_id}")
+        ])
 
-    actions.append([InlineKeyboardButton(f"◀️ {get_text('buttons.back', lang=user_lang)}", callback_data="admin_inbox")])
-    actions.append([InlineKeyboardButton(f"{get_text('ui.home_emoji', lang=user_lang)} {get_text('buttons.main_menu', lang=user_lang)}", callback_data="admin_home")])
+    # Back button (no extra emoji!)
+    actions.append([InlineKeyboardButton(get_text("buttons.back", lang=user_lang), callback_data="admin_inbox")])
+
+    # Main menu button (no extra emoji!)
+    actions.append([InlineKeyboardButton(get_text("buttons.main_menu", lang=user_lang), callback_data="admin_home")])
 
     keyboard = InlineKeyboardMarkup(actions)
 
-    await show_admin_screen(update, context, text, keyboard)
+    await show_admin_screen(update, context, text, keyboard, screen_type="ticket")
+
 
 async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Display statistics"""
     user = update.effective_user
-    user_lang = _get_user_lang(user.id)
+    user_lang = get_admin_language()
 
     if user.id != ADMIN_ID:
         return
@@ -154,15 +165,16 @@ async def stats_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = get_text("admin.stats_text", lang=user_lang, **stats)
 
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton(f"{get_text('ui.home_emoji', lang=user_lang)} {get_text('buttons.main_menu', lang=user_lang)}", callback_data="admin_home")]
+        [InlineKeyboardButton(get_text('buttons.main_menu', lang=user_lang), callback_data="admin_home")]
     ])
 
-    await show_admin_screen(update, context, text, keyboard)
+    await show_admin_screen(update, context, text, keyboard, screen_type="stats")
+
 
 async def settings_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Display settings menu"""
     user = update.effective_user
-    user_lang = _get_user_lang(user.id)
+    user_lang = get_admin_language()
 
     if user.id != ADMIN_ID:
         return
@@ -172,13 +184,15 @@ async def settings_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await show_admin_screen(
         update, context,
         get_text("admin.settings", lang=user_lang),
-        get_settings_keyboard(user_lang)
+        get_settings_keyboard(user_lang),
+        screen_type="settings"
     )
+
 
 async def home_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Display admin main menu"""
     user = update.effective_user
-    user_lang = _get_user_lang(user.id)
+    user_lang = get_admin_language()
 
     if user.id != ADMIN_ID:
         return
@@ -188,13 +202,15 @@ async def home_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await show_admin_screen(
         update, context,
         get_text("admin.welcome", lang=user_lang),
-        get_admin_main_keyboard(user_lang)
+        get_admin_main_keyboard(user_lang),
+        screen_type="home"
     )
+
 
 async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle text messages from admin"""
     user = update.effective_user
-    user_lang = _get_user_lang(user.id)
+    user_lang = get_admin_language()
     text = update.message.text
 
     if user.id != ADMIN_ID:
@@ -230,7 +246,6 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         # EDIT IN PLACE (don't create new message!)
         if search_menu_msg_id:
             if not found_ticket:
-                # 
                 try:
                     await context.bot.edit_message_text(
                         chat_id=ADMIN_ID,
@@ -307,23 +322,24 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     elif state == "awaiting_ban_reason":
         user_id = context.user_data.get("ban_user_id")
         if user_id:
-            #  CHECK - is already banned? AND GET REASON!
+            # CHECK - is already banned? AND GET REASON!
             banned_list = ban_manager.get_banned_list()
             ban_reason = None
-            
+
             for banned_user_id, reason in banned_list:
                 if banned_user_id == user_id:
                     ban_reason = reason
                     break
-            
+
             if ban_reason:
                 keyboard = InlineKeyboardMarkup([
-                    [InlineKeyboardButton(f"◀️ {get_text('buttons.back', lang=user_lang)}", callback_data="admin_settings")],
-                    [InlineKeyboardButton(f"{get_text('ui.home_emoji', lang=user_lang)} {get_text('buttons.main_menu', lang=user_lang)}", callback_data="admin_home")]
+                    [InlineKeyboardButton(get_text('buttons.back', lang=user_lang), callback_data="admin_settings")],
+                    [InlineKeyboardButton(get_text('buttons.main_menu', lang=user_lang), callback_data="admin_home")]
                 ])
-                
+
+                # ✅ ИСПРАВЛЕНО: добавлен .format()
                 await update.message.reply_text(
-                    get_text("admin.user_already_banned_reason", lang=user_lang, user_id=user_id, reason=ban_reason),
+                    get_text("admin.user_already_banned_reason", lang=user_lang).format(user_id=user_id, reason=ban_reason),
                     reply_markup=keyboard
                 )
                 context.user_data["state"] = None
@@ -333,12 +349,13 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             context.user_data["state"] = None
 
             keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton(f"◀️ {get_text('buttons.back', lang=user_lang)}", callback_data="admin_settings")],
-                [InlineKeyboardButton(f"{get_text('ui.home_emoji', lang=user_lang)} {get_text('buttons.main_menu', lang=user_lang)}", callback_data="admin_home")]
+                [InlineKeyboardButton(get_text('buttons.back', lang=user_lang), callback_data="admin_settings")],
+                [InlineKeyboardButton(get_text('buttons.main_menu', lang=user_lang), callback_data="admin_home")]
             ])
 
+            # ✅ ИСПРАВЛЕНО: добавлен .format()
             await update.message.reply_text(
-                get_text("admin.user_banned", lang=user_lang, user_id=user_id, reason=text),
+                get_text("admin.user_banned", lang=user_lang).format(user_id=user_id, reason=text),
                 reply_markup=keyboard
             )
         return
@@ -347,39 +364,41 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     elif state == "awaiting_unban_user_id":
         try:
             user_id = int(text.strip())
-            
+
             # CHECK - is banned at all? AND GET REASON!
             banned_list = ban_manager.get_banned_list()
             ban_reason = None
-            
+
             for banned_user_id, reason in banned_list:
                 if banned_user_id == user_id:
                     ban_reason = reason
                     break
-            
+
             if not ban_reason:
                 keyboard = InlineKeyboardMarkup([
-                    [InlineKeyboardButton(f"◀️ {get_text('buttons.back', lang=user_lang)}", callback_data="admin_settings")],
-                    [InlineKeyboardButton(f"{get_text('ui.home_emoji', lang=user_lang)} {get_text('buttons.main_menu', lang=user_lang)}", callback_data="admin_home")]
+                    [InlineKeyboardButton(get_text('buttons.back', lang=user_lang), callback_data="admin_settings")],
+                    [InlineKeyboardButton(get_text('buttons.main_menu', lang=user_lang), callback_data="admin_home")]
                 ])
-                
+
+                # ✅ ИСПРАВЛЕНО: добавлен .format()
                 await update.message.reply_text(
-                    get_text("admin.user_not_banned", lang=user_lang, user_id=user_id),
+                    get_text("admin.user_not_banned", lang=user_lang).format(user_id=user_id),
                     reply_markup=keyboard
                 )
                 context.user_data["state"] = None
                 return
-            
+
             ban_manager.unban_user(user_id)
             context.user_data["state"] = None
 
             keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton(f"◀️ {get_text('buttons.back', lang=user_lang)}", callback_data="admin_settings")],
-                [InlineKeyboardButton(f"{get_text('ui.home_emoji', lang=user_lang)} {get_text('buttons.main_menu', lang=user_lang)}", callback_data="admin_home")]
+                [InlineKeyboardButton(get_text('buttons.back', lang=user_lang), callback_data="admin_settings")],
+                [InlineKeyboardButton(get_text('buttons.main_menu', lang=user_lang), callback_data="admin_home")]
             ])
 
+            # ✅ ИСПРАВЛЕНО: добавлен .format()
             await update.message.reply_text(
-                get_text("admin.user_unbanned_reason", lang=user_lang, user_id=user_id, reason=ban_reason),
+                get_text("admin.user_unbanned_reason", lang=user_lang).format(user_id=user_id, reason=ban_reason),
                 reply_markup=keyboard
             )
         except ValueError:
@@ -395,9 +414,11 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # Default instruction message
     else:
         msg = await update.message.reply_text(
-            get_text("admin.reply_instruction", lang=user_lang)
+            get_text("admin.reply_instruction", lang=user_lang),
+            reply_markup=ReplyKeyboardRemove()
         )
         logger.info(f"Admin needs guidance: {msg.message_id}")
+
 
 # Aliases for main.py compatibility
 admin_inbox = inbox_handler

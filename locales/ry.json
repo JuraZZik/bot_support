@@ -96,7 +96,7 @@
     "bans_list": "📋 Список банов",
     "clear_tickets": "🗑 Очистить тикеты",
     "create_backup": "💾 Создать бэкап",
-    "backup_created_sent": "✅ Бэкап создан:\n{filename} ({size})",
+    "backup_created_sent": "✅ Бэкап создан и отправлен:\n{filename} ({size})",
     "backup_created_saved": "✅ Бэкап создан на сервере:\n{filename} ({size})",
     "backup_failed": "❌ Ошибка создания бэкапа:\n{error}",
     "backup_directory": "📁 Директория",

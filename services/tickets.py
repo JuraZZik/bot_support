@@ -58,9 +58,8 @@ class TicketService:
 
     def get_ticket(self, ticket_id: str) -> Optional[Ticket]:
         """Get ticket by ID"""
-        logger.info(f"🔍 get_ticket called with: {ticket_id}")
+        logger.debug(f"🔍 Getting ticket: {ticket_id}")
         ticket = data_manager.get_ticket(ticket_id)
-        logger.info(f"🔍 Found ticket: {ticket}")
         return ticket
 
     def add_message(
@@ -70,24 +69,27 @@ class TicketService:
         text: Optional[str],
         admin_id: Optional[int] = None
     ) -> Optional[Ticket]:
-        """Add message to ticket"""
+        """Add message to ticket and update last_actor"""
         ticket = data_manager.get_ticket(ticket_id)
         if not ticket:
+            logger.error(f"Ticket {ticket_id} not found")
             return None
 
         now = datetime.now(TIMEZONE)
         message = Message(sender=sender, text=text, at=now)
         ticket.messages.append(message)
         ticket.last_activity_at = now
-        ticket.last_actor = sender
+        ticket.last_actor = sender  # Update last_actor to track conversation flow
 
+        # If admin replies for first time, set response time and assign ticket
         if sender == "support" and ticket.first_response_at is None:
             ticket.first_response_at = now
             if admin_id:
                 ticket.assigned = admin_id
 
+        # Save updated ticket
         data_manager.update_ticket(ticket)
-        logger.info(f"Added {sender} message to ticket {ticket_id}")
+        logger.info(f"✅ Added {sender} message to ticket {ticket_id}, last_actor={sender}")
 
         return ticket
 
@@ -95,6 +97,7 @@ class TicketService:
         """Take ticket in progress"""
         ticket = data_manager.get_ticket(ticket_id)
         if not ticket:
+            logger.error(f"Ticket {ticket_id} not found")
             return None
 
         ticket.status = "working"
@@ -110,6 +113,7 @@ class TicketService:
         """Close ticket"""
         ticket = data_manager.get_ticket(ticket_id)
         if not ticket:
+            logger.error(f"Ticket {ticket_id} not found")
             return None
 
         ticket.status = "done"
@@ -124,6 +128,7 @@ class TicketService:
         """Rate ticket by user"""
         ticket = data_manager.get_ticket(ticket_id)
         if not ticket:
+            logger.error(f"Ticket {ticket_id} not found")
             return None
 
         ticket.rated = True
@@ -135,19 +140,29 @@ class TicketService:
         return ticket
 
     def get_active_tickets(self) -> List[Ticket]:
-        """Get active tickets"""
+        """Get all active tickets (new or working)"""
         return [
             t for t in data_manager.get_all_tickets()
             if t.status in ["new", "working"]
         ]
 
     def get_user_active_ticket(self, user_id: int) -> Optional[Ticket]:
-        """Get user's active ticket"""
+        """Get user's most recent active ticket (new or working status)"""
+        # Get all active tickets for user
         tickets = [
             t for t in data_manager.get_all_tickets()
             if t.user_id == user_id and t.status in ["new", "working"]
         ]
-        return tickets[0] if tickets else None
+        
+        if not tickets:
+            return None
+        
+        # Return the most recently created ticket
+        # This ensures user works with the latest ticket, not old ones
+        most_recent = max(tickets, key=lambda t: t.created_at)
+        logger.debug(f"🔍 User {user_id} has {len(tickets)} active ticket(s), returning: {most_recent.id}")
+        
+        return most_recent
 
     def clear_active_tickets(self) -> int:
         """Close all active tickets"""
