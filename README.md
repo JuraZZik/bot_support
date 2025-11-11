@@ -2,7 +2,11 @@
 
 > Full-featured Telegram bot for ticket management, feedback collection, and customer support automation
 
+<<<<<<< HEAD
 ![Version](https://img.shields.io/badge/version-2.5.1-blue)
+=======
+![Version](https://img.shields.io/badge/version-2.5.8-blue)
+>>>>>>> 50f37a4 (Update README.md)
 ![Python](https://img.shields.io/badge/python-3.11+-green)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 
@@ -81,6 +85,7 @@ cd bot_support
 Create `.env` file:
 
 🔴 MANDATORY!
+<<<<<<< HEAD
 BOT_TOKEN=7123456789:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi
 ADMIN_ID=5233603778
 DEFAULT_LOCALE=en
@@ -94,6 +99,21 @@ TIMEZONE=UTC
 
 ⏰ AUTO-CLOSE SETTINGS (optional)
 AUTO_CLOSE_AFTER_HOURS=24
+=======
+BOT_TOKEN=
+ADMIN_ID=
+DEFAULT_LOCALE=
+
+📋 RECOMMENDED (for notifications)
+ALERT_CHAT_ID=
+ALERT_TOPIC_ID=
+START_ALERT=
+SHUTDOWN_ALERT=
+TIMEZONE=
+
+⏰ AUTO-CLOSE SETTINGS (optional)
+AUTO_CLOSE_AFTER_HOURS=
+>>>>>>> 50f37a4 (Update README.md)
 
 
 **Where to find:**
@@ -216,17 +236,30 @@ bot_support/
 
 ### Backups
 
+<<<<<<< HEAD
 BACKUP_ENABLED=true
 BACKUP_FULL_PROJECT=true
 BACKUP_SEND_TO_TELEGRAM=true
 BACKUP_MAX_SIZE_MB=100
+=======
+BACKUP_ENABLED=
+BACKUP_FULL_PROJECT=
+BACKUP_SEND_TO_TELEGRAM=
+BACKUP_MAX_SIZE_MB=
+>>>>>>> 50f37a4 (Update README.md)
 
 
 ### Spam Protection
 
+<<<<<<< HEAD
 FEEDBACK_COOLDOWN_ENABLED=true
 FEEDBACK_COOLDOWN_HOURS=24
 ASK_MIN_LENGTH=10
+=======
+FEEDBACK_COOLDOWN_ENABLED=
+FEEDBACK_COOLDOWN_HOURS=
+ASK_MIN_LENGTH=
+>>>>>>> 50f37a4 (Update README.md)
 
 
 ### Auto-Close Settings
@@ -237,8 +270,13 @@ AUTO_CLOSE_AFTER_HOURS=24 # Hours to wait for user response
 
 ### Error Notifications
 
+<<<<<<< HEAD
 ERROR_ALERTS_ENABLED=true
 ERROR_ALERT_THROTTLE_SEC=60
+=======
+ERROR_ALERTS_ENABLED=
+ERROR_ALERT_THROTTLE_SEC=
+>>>>>>> 50f37a4 (Update README.md)
 
 
 ### Detailed Documentation
@@ -282,6 +320,7 @@ MIT License – free for personal and commercial use.
 
 ## 📈 Versioning
 
+<<<<<<< HEAD
 | Version | Date | Description |
 |---------|------|-------------|
 | **2.5.1** | **2025-11-08** | **⏰ Complete auto-close tickets implementation** 🆕 |
@@ -290,6 +329,16 @@ MIT License – free for personal and commercial use.
 | 2.3.9 | 2025-10-29 | 🎉 First release |
 
 ---
+=======
+| Version | Date       | Description                                     |
+| ------- | ---------- | ----------------------------------------------  |
+| 2.5.8   | 2025-11-11 | 🆕 Latest version update                        |
+| 2.5.1   | 2025-11-08 | ⏰ Complete auto-close tickets implementation🆕 |
+| 2.5.0   | 2025-11-07 | 🔧 Fixed localization and feedback system       |
+| 2.4.1   | 2025-11-06 | ✨ Stable version with multi-language support   |
+| 2.3.9   | 2025-10-29 | 🎉 First release                                |
+
+>>>>>>> 50f37a4 (Update README.md)
 
 ## 📋 Changelog
 
